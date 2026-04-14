@@ -10,12 +10,21 @@ function RoutineItem({ routine }: { routine: DailyRoutine }) {
   const [editing, setEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  if (editing) {
-    return <RoutineForm routine={routine} onClose={() => setEditing(false)} />;
-  }
-
   return (
     <>
+      {editing && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-[60]"
+            onClick={() => setEditing(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-white rounded-t-2xl shadow-lg">
+            <div className="max-w-2xl mx-auto px-4 pt-4 pb-4">
+              <RoutineForm routine={routine} onClose={() => setEditing(false)} />
+            </div>
+          </div>
+        </>
+      )}
       <div className="flex items-center justify-between py-3 min-h-[44px]">
         <div className="flex-1 min-w-0">
           <p className={`text-sm ${routine.is_active ? "text-gray-900" : "text-gray-400 line-through"}`}>
