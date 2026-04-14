@@ -62,9 +62,14 @@ export function DayColumn({
     completions.map((c) => [c.routine_id, c.is_completed])
   );
 
-  const dayRoutines = routines.filter((r) =>
-    r.days_of_week.includes(dayOfWeek)
-  );
+  const dayRoutines = routines.filter((r) => {
+    if (!r.days_of_week.includes(dayOfWeek)) return false;
+    // Only show routines created on or before this date (KST)
+    const createdDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+    }).format(new Date(r.created_at));
+    return createdDate <= dateStr;
+  });
 
   return (
     <div

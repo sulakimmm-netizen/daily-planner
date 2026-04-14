@@ -26,15 +26,19 @@ export async function getAllRoutines(userId: string): Promise<DailyRoutine[]> {
 
 export async function getRoutinesForDay(
   userId: string,
-  dayOfWeek: number
+  dayOfWeek: number,
+  date: string
 ): Promise<DailyRoutine[]> {
   const supabase = await createClient();
+  // date is YYYY-MM-DD in KST; include routines created on or before that date (end of day KST)
+  const endOfDayKST = `${date}T23:59:59.999+09:00`;
   const { data } = await supabase
     .from("daily_routines")
     .select("*")
     .eq("user_id", userId)
     .eq("is_active", true)
     .contains("days_of_week", [dayOfWeek])
+    .lte("created_at", endOfDayKST)
     .order("order", { ascending: true });
   return (data as DailyRoutine[]) ?? [];
 }

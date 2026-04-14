@@ -22,7 +22,7 @@ export default async function TodayPage({
   const dayOfWeek = getDayOfWeek(date);
 
   const [routines, tasks, completions, allRoutines] = await Promise.all([
-    getRoutinesForDay(user.id, dayOfWeek),
+    getRoutinesForDay(user.id, dayOfWeek, date),
     getTasksForDate(user.id, date),
     getCompletionsForDate(user.id, date),
     getAllRoutines(user.id),
