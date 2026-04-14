@@ -164,6 +164,46 @@ export async function skipRoutineForDate(routineId: string, date: string) {
   revalidatePath("/");
 }
 
+// === Routine → Task conversion (개별 날짜에서 루틴 수정 시) ===
+
+export async function editRoutineForDate(
+  routineId: string,
+  date: string,
+  formData: FormData
+) {
+  const { supabase, userId } = await getAuthClient();
+
+  // 1) 해당 날짜의 루틴을 skip 처리
+  await supabase.from("routine_completions").upsert(
+    {
+      routine_id: routineId,
+      user_id: userId,
+      date,
+      is_completed: false,
+      is_skipped: true,
+    },
+    { onConflict: "routine_id,date" }
+  );
+
+  // 2) 수정된 내용을 일반 할일로 생성
+  const title = formData.get("title") as string;
+  const timeBlockStr = formData.get("time_block_hours") as string;
+  const timeBlockHours = timeBlockStr ? parseFloat(timeBlockStr) : null;
+  const startTime = (formData.get("start_time") as string) || null;
+  const endTime = (formData.get("end_time") as string) || null;
+
+  await supabase.from("daily_tasks").insert({
+    user_id: userId,
+    title: title.trim(),
+    date,
+    time_block_hours: timeBlockHours,
+    start_time: startTime,
+    end_time: endTime,
+  });
+
+  revalidatePath("/");
+}
+
 // === Completion Actions ===
 
 export async function toggleRoutineCompletion(

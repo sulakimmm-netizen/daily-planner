@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { createTask, updateTask } from "@/lib/actions";
+import { createTask, updateTask, editRoutineForDate } from "@/lib/actions";
 import { TimeSelect } from "@/components/ui/time-select";
 import type { DailyTask } from "@/lib/types";
 
@@ -21,36 +21,45 @@ type TimeMode = "block" | "range";
 export function TaskFormModal({
   date,
   task,
+  routineId,
+  initialTitle,
+  initialTimeBlockHours,
   onClose,
 }: {
   date: string;
   task?: DailyTask;
+  routineId?: string;
+  initialTitle?: string;
+  initialTimeBlockHours?: number | null;
   onClose: (saved?: boolean) => void;
 }) {
   const isEdit = !!task;
 
+  const effectiveTitle = task?.title ?? initialTitle ?? "";
+  const effectiveTimeBlock = task?.time_block_hours ?? initialTimeBlockHours ?? null;
+
   const initialTimeMode: TimeMode =
     task?.start_time && task?.end_time ? "range" : "block";
   const isCustomInitial =
-    task?.time_block_hours != null &&
+    effectiveTimeBlock != null &&
     !["0.5", "1", "1.5", "2", "3", "4"].includes(
-      String(task.time_block_hours)
+      String(effectiveTimeBlock)
     );
 
   const [timeMode, setTimeMode] = useState<TimeMode>(initialTimeMode);
   const [selectedTime, setSelectedTime] = useState(
     isCustomInitial
       ? "custom"
-      : task?.time_block_hours != null
-        ? String(task.time_block_hours)
+      : effectiveTimeBlock != null
+        ? String(effectiveTimeBlock)
         : ""
   );
   const [customTime, setCustomTime] = useState(
-    isCustomInitial ? String(task!.time_block_hours) : ""
+    isCustomInitial ? String(effectiveTimeBlock) : ""
   );
   const [startTime, setStartTime] = useState(task?.start_time ?? "");
   const [endTime, setEndTime] = useState(task?.end_time ?? "");
-  const [title, setTitle] = useState(task?.title ?? "");
+  const [title, setTitle] = useState(effectiveTitle);
   const [showToast, setShowToast] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -90,6 +99,9 @@ export function TaskFormModal({
 
     if (isEdit && task) {
       await updateTask(task.id, fd);
+      onClose(true);
+    } else if (routineId) {
+      await editRoutineForDate(routineId, date, fd);
       onClose(true);
     } else {
       await createTask(fd);

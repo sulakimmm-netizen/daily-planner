@@ -12,7 +12,6 @@ import { useOptimisticToggle } from "@/hooks/use-optimistic-toggle";
 import { TimeBlockBadge } from "@/components/ui/time-block-badge";
 import { Toast } from "@/components/ui/toast";
 import { TaskFormModal } from "./task-form-modal";
-import { RoutineForm } from "@/components/routines/routine-form";
 import type { DailyTask, DailyRoutine, RoutineCompletion } from "@/lib/types";
 
 function TaskItem({
@@ -324,7 +323,7 @@ export function TaskList({
   const [items, setItems] = useState(tasks);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
-  const [editingRoutine, setEditingRoutine] = useState<DailyRoutine | null>(null);
+  const [editingRoutineForDate, setEditingRoutineForDate] = useState<DailyRoutine | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => setToastMessage(msg), []);
@@ -398,7 +397,7 @@ export function TaskList({
               routine={routine}
               date={date}
               isCompleted={isCompleted}
-              onEdit={() => setEditingRoutine(routine)}
+              onEdit={() => setEditingRoutineForDate(routine)}
               onDelete={() => showToast("할 일이 삭제됐어요")}
             />
           );
@@ -447,25 +446,18 @@ export function TaskList({
         />
       )}
 
-      {/* 루틴 수정 모달 */}
-      {editingRoutine && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/30 z-40"
-            onClick={() => setEditingRoutine(null)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-lg p-4">
-            <div className="max-w-2xl mx-auto">
-              <RoutineForm
-                routine={editingRoutine}
-                onClose={(saved) => {
-                  setEditingRoutine(null);
-                  if (saved) showToast("할 일이 수정됐어요");
-                }}
-              />
-            </div>
-          </div>
-        </>
+      {/* 루틴 개별 날짜 수정 모달 (루틴 skip + 할일로 변환) */}
+      {editingRoutineForDate && (
+        <TaskFormModal
+          date={date}
+          routineId={editingRoutineForDate.id}
+          initialTitle={editingRoutineForDate.title}
+          initialTimeBlockHours={editingRoutineForDate.time_block_hours}
+          onClose={(saved) => {
+            setEditingRoutineForDate(null);
+            if (saved) showToast("할 일이 수정됐어요");
+          }}
+        />
       )}
 
       {/* 토스트 */}
