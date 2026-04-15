@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   toggleTaskCompletion,
   toggleRoutineCompletion,
@@ -110,7 +110,7 @@ function TaskItem({
   return (
     <div
       className={`relative overflow-hidden rounded-lg transition-all duration-200 ${
-        isDragging ? "opacity-50 scale-[1.03] shadow-lg z-10" : ""
+        isDragging ? "scale-[1.03] shadow-xl z-10 ring-2 ring-gray-900/20 bg-white" : ""
       }`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -327,6 +327,13 @@ export function TaskList({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => setToastMessage(msg), []);
+  const listRef = useRef<HTMLDivElement>(null);
+  const dragIndexRef = useRef<number | null>(null);
+  const itemsRef = useRef(items);
+
+  // Keep refs in sync
+  dragIndexRef.current = dragIndex;
+  itemsRef.current = items;
 
   // Sync with server data
   const prevTasksRef = useRef(tasks);
@@ -339,33 +346,50 @@ export function TaskList({
     setDragIndex(index);
   }, []);
 
-  function handleListTouchMove(e: React.TouchEvent) {
-    if (dragIndex === null) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    const wrapper = el?.closest("[data-task-index]");
-    if (wrapper) {
+  // Non-passive touch listeners for drag reordering (allows preventDefault to block scroll)
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+
+    function onTouchMove(e: TouchEvent) {
+      const di = dragIndexRef.current;
+      if (di === null) return;
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      const wrapper = target?.closest("[data-task-index]") as HTMLElement | null;
+      if (!wrapper) return;
+
       const overIndex = Number(wrapper.getAttribute("data-task-index"));
-      if (overIndex !== dragIndex && !isNaN(overIndex)) {
-        setItems((prev) => {
-          const next = [...prev];
-          const [moved] = next.splice(dragIndex, 1);
-          next.splice(overIndex, 0, moved);
-          return next;
-        });
-        setDragIndex(overIndex);
+      if (isNaN(overIndex) || overIndex === di) return;
+
+      dragIndexRef.current = overIndex;
+      setItems((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(di, 1);
+        next.splice(overIndex, 0, moved);
+        itemsRef.current = next;
+        return next;
+      });
+      setDragIndex(overIndex);
+    }
+
+    function onTouchEnd() {
+      if (dragIndexRef.current !== null) {
+        setDragIndex(null);
+        dragIndexRef.current = null;
+        reorderTasks(itemsRef.current.map((t) => t.id));
       }
     }
-  }
 
-  function handleListTouchEnd() {
-    if (dragIndex !== null) {
-      const orderedIds = items.map((t) => t.id);
-      setDragIndex(null);
-      reorderTasks(orderedIds);
-    }
-  }
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
 
   return (
     <section>
@@ -423,10 +447,8 @@ export function TaskList({
 
         return (
           <div
+            ref={listRef}
             className="flex flex-col gap-2"
-            style={{ touchAction: dragIndex !== null ? "none" : "auto" }}
-            onTouchMove={handleListTouchMove}
-            onTouchEnd={handleListTouchEnd}
           >
             {uncompleted}
             {completed}
