@@ -48,26 +48,26 @@ function TaskItem({
     onDelete();
   }
 
-  function handlePointerDown(e: React.PointerEvent) {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
+  // Touch handlers (mobile) — handle swipe + long-press
+  function handleTouchStart(e: React.TouchEvent) {
     e.stopPropagation();
-    pointerStartX.current = e.clientX;
-    pointerStartY.current = e.clientY;
+    const touch = e.touches[0];
+    pointerStartX.current = touch.clientX;
+    pointerStartY.current = touch.clientY;
     isLongPress.current = false;
 
-    const delay = e.pointerType === "mouse" ? 250 : 500;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
       onDragStart();
       if (navigator.vibrate) navigator.vibrate(50);
-    }, delay);
+    }, 500);
   }
 
-  function handlePointerMove(e: React.PointerEvent) {
-    const dx = e.clientX - pointerStartX.current;
-    const dy = e.clientY - pointerStartY.current;
+  function handleTouchMove(e: React.TouchEvent) {
+    const touch = e.touches[0];
+    const dx = touch.clientX - pointerStartX.current;
+    const dy = touch.clientY - pointerStartY.current;
 
-    // Cancel long press if moved
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
@@ -75,24 +75,16 @@ function TaskItem({
       }
     }
 
-    if (isLongPress.current) {
-      // Drag mode - parent's document-level listener handles it
-      return;
-    }
+    if (isLongPress.current) return;
 
-    // Swipe detection (touch-only left swipe)
-    if (
-      e.pointerType === "touch" &&
-      Math.abs(dx) > Math.abs(dy) &&
-      dx < -10
-    ) {
+    if (Math.abs(dx) > Math.abs(dy) && dx < -10) {
       e.stopPropagation();
       setSwiping(true);
       setSwipeX(Math.max(dx, -160));
     }
   }
 
-  function handlePointerUp() {
+  function handleTouchEnd() {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -113,6 +105,45 @@ function TaskItem({
     }
   }
 
+  // Pointer handlers (desktop mouse only) — handle long-press for drag-reorder
+  function handlePointerDown(e: React.PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    pointerStartX.current = e.clientX;
+    pointerStartY.current = e.clientY;
+    isLongPress.current = false;
+
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      onDragStart();
+    }, 250);
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    const dx = e.clientX - pointerStartX.current;
+    const dy = e.clientY - pointerStartY.current;
+
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    }
+  }
+
+  function handlePointerUp(e: React.PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (isLongPress.current) {
+      isLongPress.current = false;
+    }
+  }
+
   return (
     <div
       className={`relative overflow-hidden rounded-lg ${
@@ -125,9 +156,13 @@ function TaskItem({
           ? {
               transform: `translateY(${dragY}px) scale(1.03)`,
               transition: "none",
+              touchAction: "pan-y",
             }
-          : undefined
+          : { touchAction: "pan-y" }
       }
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -263,6 +298,7 @@ function RoutineItem({
     <div
       data-swipeable
       className="relative overflow-hidden rounded-lg"
+      style={{ touchAction: "pan-y" }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
